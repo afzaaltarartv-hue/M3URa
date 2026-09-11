@@ -19,9 +19,10 @@ const AppContent: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen bg-[#08090d] text-slate-100 flex flex-col md:flex-row transition-all duration-300 ${
-        settings.tvMode ? 'text-base font-medium' : ''
-      }`}
+      id="streamglass-app-root"
+      className={`min-h-screen flex flex-col md:flex-row transition-colors duration-300 ${
+        settings.theme === 'light' ? 'bg-[#f4f6fb] text-slate-900' : 'bg-[#08090d] text-slate-100'
+      } ${settings.tvMode ? 'text-base font-medium' : ''}`}
     >
       {/* Desktop Frosted Sidebar */}
       <Sidebar />

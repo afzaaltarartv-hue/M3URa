@@ -15,6 +15,8 @@ import {
   ShieldCheck,
   Activity,
   Tv,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { storage } from '../../services/storage';
@@ -139,20 +141,28 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <button
+                id="theme-btn-dark"
                 onClick={() => updateSettings({ theme: 'dark' })}
-                className={`px-4 py-1.5 rounded-xl font-semibold transition-all ${
-                  settings.theme === 'dark' ? 'bg-sky-500 text-white' : 'glass-pill text-slate-400 hover:text-white'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                  settings.theme === 'dark'
+                    ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30'
+                    : 'glass-pill text-slate-400 hover:text-white'
                 }`}
               >
-                Dark Cinematic
+                <Moon className="w-3.5 h-3.5" />
+                <span>Dark Cinematic</span>
               </button>
               <button
+                id="theme-btn-light"
                 onClick={() => updateSettings({ theme: 'light' })}
-                className={`px-4 py-1.5 rounded-xl font-semibold transition-all ${
-                  settings.theme === 'light' ? 'bg-sky-500 text-white' : 'glass-pill text-slate-400 hover:text-white'
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold transition-all cursor-pointer ${
+                  settings.theme === 'light'
+                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
+                    : 'glass-pill text-slate-400 hover:text-white'
                 }`}
               >
-                Refined Light
+                <Sun className="w-3.5 h-3.5" />
+                <span>Refined Light</span>
               </button>
             </div>
           </div>

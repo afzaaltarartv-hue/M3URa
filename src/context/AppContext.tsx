@@ -64,6 +64,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedMovie, setSelectedMovie] = useState<MovieItem | null>(null);
   const [quickChannelDrawerOpen, setQuickChannelDrawerOpen] = useState(false);
 
+  // Synchronize visual theme, accent color, and glass intensity to document root
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', settings.theme);
+    root.setAttribute('data-glass', settings.glassIntensity);
+    if (settings.theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+      document.body.classList.add('light');
+      document.body.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      document.body.classList.add('dark');
+      document.body.classList.remove('light');
+    }
+
+    const accents: Record<string, { color: string; glow: string; border: string }> = {
+      sky: { color: '#38bdf8', glow: 'rgba(56, 189, 248, 0.25)', border: 'rgba(56, 189, 248, 0.45)' },
+      emerald: { color: '#10b981', glow: 'rgba(16, 185, 129, 0.25)', border: 'rgba(16, 185, 129, 0.45)' },
+      amber: { color: '#f59e0b', glow: 'rgba(245, 158, 11, 0.25)', border: 'rgba(245, 158, 11, 0.45)' },
+      rose: { color: '#f43f5e', glow: 'rgba(244, 63, 94, 0.25)', border: 'rgba(244, 63, 94, 0.45)' },
+      violet: { color: '#8b5cf6', glow: 'rgba(139, 92, 246, 0.25)', border: 'rgba(139, 92, 246, 0.45)' },
+    };
+
+    const currentAccent = accents[settings.accentColor] || accents.sky;
+    root.style.setProperty('--accent-color', currentAccent.color);
+    root.style.setProperty('--accent-glow', currentAccent.glow);
+    root.style.setProperty('--accent-border', currentAccent.border);
+  }, [settings.theme, settings.accentColor, settings.glassIntensity]);
+
   // Sync content when active playlist or playlists change
   const refreshContent = useCallback(() => {
     const pl = storage.getPlaylists();

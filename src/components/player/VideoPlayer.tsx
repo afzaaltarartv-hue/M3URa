@@ -185,9 +185,21 @@ export const VideoPlayer: React.FC = () => {
       video.load();
 
       if (settings.autoplay) {
-        video.play().catch(() => {
-          setIsPlaying(false);
-        });
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsLoading(false);
+              setIsPlaying(true);
+            })
+            .catch(() => {
+              // iOS autoplay policy requires direct user interaction or muted play
+              setIsLoading(false);
+              setIsPlaying(false);
+            });
+        }
+      } else {
+        setIsLoading(false);
       }
     } else {
       setErrorMessage('Your browser cannot play this stream format directly.');
@@ -203,13 +215,18 @@ export const VideoPlayer: React.FC = () => {
 
   // Video Event Handlers
   useEffect(() => {
-    const video = videoRef.current;
+    const video = videoRef.current as (HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+      webkitExitFullscreen?: () => void;
+      webkitDisplayingFullscreen?: boolean;
+    }) | null;
     if (!video) return;
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleWaiting = () => setIsLoading(true);
     const handlePlaying = () => setIsLoading(false);
+    const handleCanPlay = () => setIsLoading(false);
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
       if (video.buffered.length > 0) {
@@ -225,22 +242,48 @@ export const VideoPlayer: React.FC = () => {
       setErrorMessage('Stream failed to load. Check that the source URL is active and accessible via CORS.');
     };
 
+    // WebKit / iOS native fullscreen events
+    const handleWebkitBeginFs = () => setIsFullscreen(true);
+    const handleWebkitEndFs = () => setIsFullscreen(false);
+
+    // Document fullscreen change handler
+    const handleDocFsChange = () => {
+      const isFs = !!(
+        document.fullscreenElement ||
+        (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+        (document as unknown as { mozFullScreenElement?: Element }).mozFullScreenElement
+      );
+      setIsFullscreen(isFs);
+    };
+
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
+    video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('error', handleError);
+    video.addEventListener('webkitbeginfullscreen', handleWebkitBeginFs);
+    video.addEventListener('webkitendfullscreen', handleWebkitEndFs);
+
+    document.addEventListener('fullscreenchange', handleDocFsChange);
+    document.addEventListener('webkitfullscreenchange', handleDocFsChange);
 
     return () => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('error', handleError);
+      video.removeEventListener('webkitbeginfullscreen', handleWebkitBeginFs);
+      video.removeEventListener('webkitendfullscreen', handleWebkitEndFs);
+
+      document.removeEventListener('fullscreenchange', handleDocFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleDocFsChange);
     };
   }, [activeMedia, isLive, updateWatchProgress]);
 
@@ -354,13 +397,72 @@ export const VideoPlayer: React.FC = () => {
   };
 
   const toggleFullscreen = () => {
-    if (!playerContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      playerContainerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
+    const video = videoRef.current as (HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+      webkitExitFullscreen?: () => void;
+      webkitDisplayingFullscreen?: boolean;
+      webkitSupportsFullscreen?: boolean;
+    }) | null;
+    const container = playerContainerRef.current as (HTMLDivElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    }) | null;
+
+    const isDocFs = !!(
+      document.fullscreenElement ||
+      (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement ||
+      (document as unknown as { mozFullScreenElement?: Element }).mozFullScreenElement
+    );
+    const isVideoFs = !!(video?.webkitDisplayingFullscreen || isFullscreen);
+
+    if (isDocFs || isVideoFs || isFullscreen) {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as unknown as { webkitExitFullscreen?: () => void }).webkitExitFullscreen) {
+        (document as unknown as { webkitExitFullscreen: () => void }).webkitExitFullscreen();
+      } else if (video?.webkitExitFullscreen) {
+        video.webkitExitFullscreen();
+      }
       setIsFullscreen(false);
+    } else {
+      // Enter Fullscreen: standard API with iOS Safari fallbacks
+      if (container?.requestFullscreen) {
+        container
+          .requestFullscreen()
+          .then(() => setIsFullscreen(true))
+          .catch(() => {
+            // Container fullscreen rejected on iOS; fallback to video element
+            if (video?.webkitEnterFullscreen) {
+              try {
+                video.webkitEnterFullscreen();
+              } catch (err) {
+                console.warn('webkitEnterFullscreen error', err);
+              }
+            }
+            setIsFullscreen(true);
+          });
+      } else if (container?.webkitRequestFullscreen) {
+        try {
+          container.webkitRequestFullscreen();
+          setIsFullscreen(true);
+        } catch {
+          if (video?.webkitEnterFullscreen) {
+            try {
+              video.webkitEnterFullscreen();
+            } catch {}
+          }
+          setIsFullscreen(true);
+        }
+      } else if (video?.webkitEnterFullscreen) {
+        // Direct iOS Safari iPhone/iPad video presentation
+        try {
+          video.webkitEnterFullscreen();
+        } catch {}
+        setIsFullscreen(true);
+      } else {
+        // Fallback to simulated edge-to-edge fullscreen
+        setIsFullscreen(true);
+      }
     }
   };
 
@@ -467,21 +569,41 @@ export const VideoPlayer: React.FC = () => {
   return (
     <div
       id="streamglass-video-modal"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-2xl p-2 sm:p-4 lg:p-8 animate-in fade-in duration-200"
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-2xl animate-in fade-in duration-200 ${
+        isFullscreen ? 'p-0' : 'p-2 sm:p-4 lg:p-8'
+      }`}
     >
       <div
         ref={playerContainerRef}
         onMouseMove={triggerShowControls}
         onClick={triggerShowControls}
-        className="relative w-full max-w-6xl aspect-video max-h-[90vh] bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col justify-end select-none group"
+        className={`relative w-full bg-black overflow-hidden shadow-2xl flex flex-col justify-end select-none group transition-all duration-200 ${
+          isFullscreen
+            ? 'fixed inset-0 z-[100] max-w-none max-h-none h-screen rounded-none border-none'
+            : 'max-w-6xl aspect-video max-h-[90vh] rounded-3xl border border-white/10'
+        }`}
       >
-        {/* Video Element */}
+        {/* Video Element with iOS attributes */}
         <video
           ref={videoRef}
           className="w-full h-full object-contain cursor-pointer"
           onClick={togglePlay}
           playsInline
+          preload="auto"
         />
+
+        {/* Center Play Button Overlay (for touch devices and when paused) */}
+        {!isPlaying && !isLoading && !errorMessage && (
+          <div
+            onClick={togglePlay}
+            className="absolute inset-0 flex items-center justify-center bg-black/25 cursor-pointer z-10 transition-opacity"
+            title="Click or tap to play"
+          >
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full glass-panel flex items-center justify-center border border-white/30 shadow-2xl hover:scale-110 active:scale-95 transition-all bg-sky-500/80 text-white shadow-sky-500/40 cursor-pointer">
+              <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white translate-x-0.5" />
+            </div>
+          </div>
+        )}
 
         {/* Loading Spinner & Status */}
         {isLoading && !errorMessage && (
