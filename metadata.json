@@ -1,0 +1,6 @@
+{
+  "name": "StreamGlass",
+  "description": "A premium personal streaming platform for live TV channels, movies, and M3U playlists with Apple Liquid Glass aesthetic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
