@@ -1,4 +1,4 @@
-import { ChannelItem, MovieItem, Playlist, UserSettings, WatchHistoryItem } from '../types';
+import { ChannelItem, MovieItem, Playlist, UserSettings, WatchHistoryItem, AddMovieInput } from '../types';
 import { SAMPLE_CHANNELS, SAMPLE_MOVIES, STARTER_PLAYLIST } from './sampleData';
 
 const STORAGE_KEYS = {
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   SETTINGS: 'streamglass_settings_v1',
   CUSTOM_CHANNELS_PREFIX: 'streamglass_ch_',
   CUSTOM_MOVIES_PREFIX: 'streamglass_mov_',
+  USER_ADDED_MOVIES: 'streamglass_user_movies_v1',
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -156,11 +157,62 @@ class StorageService {
   }
 
   // --- Movies ---
+  getUserAddedMovies(): MovieItem[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.USER_ADDED_MOVIES);
+      if (data) {
+        return JSON.parse(data);
+      }
+    } catch (e) {
+      console.warn('Failed reading user added movies', e);
+    }
+    return [];
+  }
+
+  saveUserAddedMovies(movies: MovieItem[]): void {
+    try {
+      localStorage.setItem(STORAGE_KEYS.USER_ADDED_MOVIES, JSON.stringify(movies));
+    } catch (e) {
+      console.warn('Failed saving user added movies', e);
+    }
+  }
+
+  addUserMovie(movieData: AddMovieInput): MovieItem {
+    const movies = this.getUserAddedMovies();
+    const id = movieData.id || `custom-mov-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const newMovie: MovieItem = {
+      ...movieData,
+      id,
+      playlistId: movieData.playlistId || 'custom-user-cinema',
+      source: 'playlist',
+      genre: movieData.genre && movieData.genre.length > 0 ? movieData.genre : ['Cinema'],
+      year: movieData.year || new Date().getFullYear(),
+      duration: movieData.duration || 7200,
+      description: movieData.description || 'Custom added movie stream',
+      rating: typeof movieData.rating === 'number' ? movieData.rating : 5.0,
+      resolution: movieData.resolution || 'FHD',
+    };
+    const updated = [newMovie, ...movies.filter(m => m.id !== id)];
+    this.saveUserAddedMovies(updated);
+    return newMovie;
+  }
+
+  deleteUserMovie(id: string): void {
+    const movies = this.getUserAddedMovies().filter(m => m.id !== id);
+    this.saveUserAddedMovies(movies);
+  }
+
   getMovies(playlistId?: string): MovieItem[] {
     const allPlaylists = this.getPlaylists();
     const enabledIds = new Set(allPlaylists.filter(p => p.enabled).map(p => p.id));
 
     let result: MovieItem[] = [];
+
+    // Include custom user added movies
+    const userAdded = this.getUserAddedMovies();
+    if (!playlistId || playlistId === 'all' || playlistId === 'custom-user-cinema') {
+      result = result.concat(userAdded);
+    }
 
     if (enabledIds.has(STARTER_PLAYLIST.id) && (!playlistId || playlistId === 'all' || playlistId === STARTER_PLAYLIST.id)) {
       result = result.concat(SAMPLE_MOVIES);
@@ -175,7 +227,13 @@ class StorageService {
       result = result.concat(movies);
     });
 
-    return result;
+    // Deduplicate by ID
+    const seen = new Set<string>();
+    return result.filter(m => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
   }
 
   getMoviesForPlaylist(playlistId: string): MovieItem[] {

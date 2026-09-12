@@ -1,9 +1,9 @@
 import React from 'react';
-import { Play, Heart, X, Clock, Star, Calendar, Film, Check, ExternalLink } from 'lucide-react';
+import { Play, Heart, X, Clock, Star, Calendar, Film, Check, ExternalLink, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const MovieDetailsModal: React.FC = () => {
-  const { selectedMovie, setSelectedMovie, playMedia, toggleFavorite, isFavorite, watchHistory } = useApp();
+  const { selectedMovie, setSelectedMovie, playMedia, toggleFavorite, isFavorite, watchHistory, deleteCustomMovie } = useApp();
 
   if (!selectedMovie) return null;
 
@@ -103,6 +103,20 @@ export const MovieDetailsModal: React.FC = () => {
               <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-400' : ''}`} />
               <span>{isFav ? 'In Favorites' : 'Add to Favorites'}</span>
             </button>
+
+            {(selectedMovie.id.startsWith('custom-mov-') || selectedMovie.playlistId === 'custom-user-cinema') && (
+              <button
+                onClick={() => {
+                  deleteCustomMovie(selectedMovie.id);
+                  setSelectedMovie(null);
+                }}
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl glass-panel text-sm font-semibold text-rose-400 hover:bg-rose-500/20 border border-rose-500/30 transition-all cursor-pointer ml-auto"
+                title="Remove movie from library"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Remove</span>
+              </button>
+            )}
           </div>
 
           {/* Description */}

@@ -37,6 +37,21 @@ export interface MovieItem {
   resolution?: '4K' | 'FHD' | 'HD' | 'SD';
 }
 
+export type AddMovieInput = {
+  id?: string;
+  title: string;
+  url: string;
+  poster?: string;
+  backdrop?: string;
+  genre?: string[];
+  year?: number;
+  duration?: number;
+  description?: string;
+  rating?: number;
+  resolution?: '4K' | 'FHD' | 'HD' | 'SD';
+  playlistId?: string;
+};
+
 export interface Playlist {
   id: string;
   name: string;

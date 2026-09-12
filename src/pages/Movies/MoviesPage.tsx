@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Film, Search, Sparkles, Filter, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Film, Search, Sparkles, Filter, SlidersHorizontal, ArrowUpDown, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { MovieCard } from '../../components/movies/MovieCard';
 
 export const MoviesPage: React.FC = () => {
-  const { movies } = useApp();
+  const { movies, setIsAddMovieModalOpen } = useApp();
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'rating' | 'year' | 'duration'>('rating');
@@ -58,8 +58,17 @@ export const MoviesPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Sort selector */}
-        <div className="flex items-center gap-2">
+        {/* Actions & Sort selector */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            id="add-movies-btn"
+            onClick={() => setIsAddMovieModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-lg shadow-sky-500/25 transition-all cursor-pointer group"
+          >
+            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" />
+            <span>Add Movies</span>
+          </button>
+
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-panel text-xs text-slate-300">
             <ArrowUpDown className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-slate-400">Sort:</span>
@@ -113,26 +122,48 @@ export const MoviesPage: React.FC = () => {
 
       {/* Grid of Movie Cards */}
       {filteredMovies.length === 0 ? (
-        <div className="glass-panel p-12 rounded-3xl text-center space-y-3 max-w-md mx-auto my-10">
+        <div className="glass-panel p-12 rounded-3xl text-center space-y-4 max-w-md mx-auto my-10">
           <Film className="w-12 h-12 text-slate-600 mx-auto" />
           <h3 className="text-base font-bold text-white">No Movies Found</h3>
           <p className="text-xs text-slate-400">
             {searchQuery
               ? `No movies match "${searchQuery}".`
-              : 'No movies available in this genre.'}
+              : 'No movies found for the selected filter.'}
           </p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedGenre('All');
-            }}
-            className="px-4 py-2 rounded-xl bg-sky-500/20 text-sky-300 text-xs font-semibold border border-sky-400/30 hover:bg-sky-500/30"
-          >
-            Clear Filters
-          </button>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedGenre('All');
+              }}
+              className="px-4 py-2 rounded-xl bg-white/5 text-slate-300 hover:text-white text-xs font-semibold border border-white/10"
+            >
+              Clear Filters
+            </button>
+            <button
+              onClick={() => setIsAddMovieModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-lg shadow-sky-500/25 flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Movie</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+          {/* Quick Add Card */}
+          <button
+            id="add-movie-grid-card"
+            onClick={() => setIsAddMovieModalOpen(true)}
+            className="group relative flex flex-col items-center justify-center rounded-2xl overflow-hidden glass-card border border-dashed border-white/20 hover:border-sky-400/60 hover:bg-sky-500/[0.04] transition-all cursor-pointer p-4 text-center aspect-[2/3]"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-3 group-hover:scale-110 group-hover:bg-sky-500 group-hover:text-white transition-all shadow-lg shadow-sky-500/20">
+              <Plus className="w-6 h-6" />
+            </div>
+            <span className="font-bold text-xs text-white group-hover:text-sky-300">Add New Movie</span>
+            <span className="text-[10px] text-slate-400 mt-1">MP4 / MKV / M3U</span>
+          </button>
+
           {filteredMovies.map(movie => (
             <MovieCard key={movie.id} movie={movie} />
           ))}

@@ -5,6 +5,7 @@ import { BottomNav } from './components/navigation/BottomNav';
 import { TopBar } from './components/navigation/TopBar';
 import { VideoPlayer } from './components/player/VideoPlayer';
 import { MovieDetailsModal } from './components/movies/MovieDetailsModal';
+import { AddMovieModal } from './components/movies/AddMovieModal';
 import { GlobalSearchModal } from './components/search/GlobalSearchModal';
 
 import { HomePage } from './pages/Home/HomePage';
@@ -51,6 +52,9 @@ const AppContent: React.FC = () => {
 
       {/* Movie Details Modal Drawer */}
       <MovieDetailsModal />
+
+      {/* Add Movie Custom Modal */}
+      <AddMovieModal />
 
       {/* Global Command / Search Spotlight */}
       <GlobalSearchModal />

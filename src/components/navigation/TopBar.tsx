@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, SlidersHorizontal, Monitor, Sun, Moon } from 'lucide-react';
+import { Search, Sparkles, SlidersHorizontal, Monitor, Sun, Moon, Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const TopBar: React.FC = () => {
@@ -10,6 +10,7 @@ export const TopBar: React.FC = () => {
     updateSettings,
     channels,
     movies,
+    setIsAddMovieModalOpen,
   } = useApp();
 
   const activePlaylist = playlists.find(p => p.id === settings.activePlaylistId);
@@ -57,6 +58,17 @@ export const TopBar: React.FC = () => {
 
       {/* Global Actions */}
       <div className="flex items-center gap-2.5">
+        {/* Add Movie Quick Button */}
+        <button
+          id="topbar-add-movie-btn"
+          onClick={() => setIsAddMovieModalOpen(true)}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/30 text-xs font-semibold transition-all cursor-pointer"
+          title="Add Movie to Cinema Deck"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add Movie</span>
+        </button>
+
         {/* Search Bar Input / Trigger */}
         <button
           id="topbar-search-trigger"

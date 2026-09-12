@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { ChannelItem, MovieItem, Playlist, UserSettings, WatchHistoryItem } from '../types';
+import { ChannelItem, MovieItem, Playlist, UserSettings, WatchHistoryItem, AddMovieInput } from '../types';
 import { storage } from '../services/storage';
 
 export type NavigationPage = 'home' | 'live' | 'movies' | 'favorites' | 'playlists' | 'settings';
@@ -44,6 +44,10 @@ interface AppContextType {
   setSelectedMovie: (movie: MovieItem | null) => void;
   quickChannelDrawerOpen: boolean;
   setQuickChannelDrawerOpen: (open: boolean) => void;
+  isAddMovieModalOpen: boolean;
+  setIsAddMovieModalOpen: (open: boolean) => void;
+  addCustomMovie: (movieData: AddMovieInput) => MovieItem;
+  deleteCustomMovie: (id: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -63,6 +67,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<MovieItem | null>(null);
   const [quickChannelDrawerOpen, setQuickChannelDrawerOpen] = useState(false);
+  const [isAddMovieModalOpen, setIsAddMovieModalOpen] = useState(false);
 
   // Synchronize visual theme, accent color, and glass intensity to document root
   useEffect(() => {
@@ -214,6 +219,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  const addCustomMovie = useCallback((movieData: AddMovieInput) => {
+    const created = storage.addUserMovie(movieData);
+    refreshContent();
+    return created;
+  }, [refreshContent]);
+
+  const deleteCustomMovie = useCallback((id: string) => {
+    storage.deleteUserMovie(id);
+    refreshContent();
+  }, [refreshContent]);
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -292,6 +308,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedMovie,
         quickChannelDrawerOpen,
         setQuickChannelDrawerOpen,
+        isAddMovieModalOpen,
+        setIsAddMovieModalOpen,
+        addCustomMovie,
+        deleteCustomMovie,
       }}
     >
       {children}
