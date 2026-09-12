@@ -219,6 +219,21 @@ export const SAMPLE_CHANNELS: ChannelItem[] = [
 
 export const SAMPLE_MOVIES: MovieItem[] = [
   {
+    id: 'mov-rockstar-2011',
+    title: 'Rockstar (2011)',
+    url: 'https://archive.org/download/rockstar-2011/Rockstar%20%282011%29.mp4',
+    poster: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+    backdrop: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1600&auto=format&fit=crop&q=80',
+    genre: ['Musical', 'Drama', 'Romance'],
+    year: 2011,
+    duration: 9540, // 2h 39m
+    description: 'Janardhan Jakhar, a passionate Delhi student, seeks musical genius through deep emotion and heartache. His journey transforms him into "Jordan", a wild, rebellious rockstar whose music enraptures millions while he struggles with fame, longing, and bittersweet passion.',
+    rating: 4.9,
+    playlistId: STARTER_PLAYLIST_ID,
+    source: 'curated',
+    resolution: 'FHD',
+  },
+  {
     id: 'mov-tears-of-steel',
     title: 'Tears of Steel',
     url: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
@@ -331,4 +346,7 @@ https://amdlive-ch01-ctnd-com.akamaized.net/arirang_1ch/smil:arirang_1ch.smil/pl
 
 #EXTINF:-1 tvg-id="CineLoop.tv" tvg-name="CineLoop HD" tvg-logo="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=150" group-title="Movies & Cinema" tvg-country="NL",CineLoop 24/7 Cinema HD
 https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
+
+#EXTINF:-1 tvg-id="Rockstar.2011" tvg-name="Rockstar" tvg-logo="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150" group-title="Movies & Cinema" tvg-country="IN",Rockstar (2011) [FHD MP4]
+https://archive.org/download/rockstar-2011/Rockstar%20%282011%29.mp4
 `;

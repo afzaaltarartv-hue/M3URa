@@ -68,14 +68,34 @@ export function parseM3U(
       continue;
     }
 
-    // It's a stream URL
-    if (currentExtinf) {
+    // Stream URL handling (supports both #EXTINF declared streams and direct pasted URLs)
+    if (line.startsWith('http://') || line.startsWith('https://') || line.startsWith('rtmp://') || line.startsWith('rtsp://')) {
       const streamUrl = line;
-      const attributes = currentExtinf.attributes;
-      const rawTitle = currentExtinf.rawTitle || 'Unnamed Stream';
+      let attributes: Record<string, string> = {};
+      let rawTitle = 'Direct Stream';
+      let duration = -1;
+
+      if (currentExtinf) {
+        attributes = currentExtinf.attributes;
+        rawTitle = currentExtinf.rawTitle || 'Unnamed Stream';
+        duration = currentExtinf.duration ?? -1;
+      } else {
+        // Synthesize metadata from the URL itself (e.g. filename from path)
+        try {
+          const urlObj = new URL(streamUrl);
+          const lastSegment = decodeURIComponent(urlObj.pathname).split('/').filter(Boolean).pop() || '';
+          if (lastSegment) {
+            rawTitle = lastSegment.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+          } else {
+            rawTitle = playlistMeta.name || 'Direct Stream';
+          }
+        } catch {
+          rawTitle = playlistMeta.name || 'Direct Stream';
+        }
+      }
 
       // Group title
-      let group = attributes['group-title'] || currentGroupFallback || 'General';
+      let group = attributes['group-title'] || currentGroupFallback || (isVodMedia(streamUrl, '') ? 'Movies' : 'General');
       group = cleanGroup(group);
       groupsSet.add(group);
 
@@ -84,7 +104,7 @@ export function parseM3U(
       const resolution = detectResolution(rawTitle + ' ' + streamUrl);
 
       // Determine if VOD/Movie or Live TV
-      const isVod = isVodMedia(streamUrl, group, currentExtinf.duration);
+      const isVod = isVodMedia(streamUrl, group, duration);
 
       const id = `${playlistMeta.id}-${channels.length + movies.length + 1}`;
 
@@ -93,12 +113,12 @@ export function parseM3U(
           id,
           title: cleanedTitle,
           url: streamUrl,
-          poster: attributes['tvg-logo'] || attributes['logo'],
+          poster: attributes['tvg-logo'] || attributes['logo'] || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80',
           genre: [group],
           year: extractYear(rawTitle) || new Date().getFullYear(),
-          duration: currentExtinf.duration && currentExtinf.duration > 0 ? currentExtinf.duration : 5400,
+          duration: duration && duration > 0 ? duration : 5400,
           description: `${cleanedTitle} (${group})`,
-          rating: 4.5,
+          rating: 4.8,
           playlistId: playlistMeta.id,
           source: 'playlist',
           resolution,
@@ -114,7 +134,7 @@ export function parseM3U(
           id,
           name: cleanedTitle,
           url: streamUrl,
-          logo: attributes['tvg-logo'] || attributes['logo'],
+          logo: attributes['tvg-logo'] || attributes['logo'] || 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=150&auto=format&fit=crop&q=80',
           group,
           tvgId: attributes['tvg-id'],
           tvgName: attributes['tvg-name'],
@@ -134,6 +154,7 @@ export function parseM3U(
 
       currentExtinf = null;
       currentGroupFallback = null;
+      continue;
     }
   }
 

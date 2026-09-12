@@ -42,11 +42,11 @@ export const TopBar: React.FC = () => {
               onChange={e => updateSettings({ activePlaylistId: e.target.value })}
               className="bg-transparent text-white font-medium focus:outline-none cursor-pointer pr-1"
             >
-              <option value="all" className="bg-[#121520] text-white">
+              <option value="all" className="bg-[#121520] text-white dark:bg-[#121520] dark:text-white">
                 All Playlists ({channels.length + movies.length} streams)
               </option>
               {playlists.map(p => (
-                <option key={p.id} value={p.id} className="bg-[#121520] text-white">
+                <option key={p.id} value={p.id} className="bg-[#121520] text-white dark:bg-[#121520] dark:text-white">
                   {p.name} ({p.channelCount + p.movieCount})
                 </option>
               ))}

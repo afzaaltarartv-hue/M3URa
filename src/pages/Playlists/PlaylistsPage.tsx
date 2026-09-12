@@ -15,6 +15,9 @@ import {
   Power,
   Tv,
   Film,
+  Plus,
+  Play,
+  Video,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { parseM3U } from '../../services/m3uParser';
@@ -28,11 +31,12 @@ export const PlaylistsPage: React.FC = () => {
     deletePlaylist,
     togglePlaylistEnabled,
     refreshContent,
+    playMedia,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'upload' | 'url' | 'paste' | 'curated'>('upload');
+  const [activeTab, setActiveTab] = useState<'direct' | 'upload' | 'url' | 'paste'>('direct');
 
-  // Form states
+  // Form states for general playlist import
   const [playlistName, setPlaylistName] = useState('');
   const [urlInput, setUrlInput] = useState('');
   const [textInput, setTextInput] = useState('');
@@ -41,6 +45,15 @@ export const PlaylistsPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [inspectPlaylist, setInspectPlaylist] = useState<Playlist | null>(null);
 
+  // Form states for Direct Single Stream / MP4 / M3U8
+  const [directTitle, setDirectTitle] = useState('');
+  const [directUrl, setDirectUrl] = useState('');
+  const [directType, setDirectType] = useState<'movie' | 'live'>('movie');
+  const [directGenre, setDirectGenre] = useState('Musical, Drama');
+  const [directPoster, setDirectPoster] = useState('');
+  const [directYear, setDirectYear] = useState('2011');
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+
   // File Upload Drag & Drop
   const [isDragging, setIsDragging] = useState(false);
 
@@ -48,8 +61,10 @@ export const PlaylistsPage: React.FC = () => {
     setPlaylistName('');
     setUrlInput('');
     setTextInput('');
+    setDirectTitle('');
+    setDirectUrl('');
+    setDirectPoster('');
     setErrorMsg(null);
-    setSuccessMsg(null);
   };
 
   const processM3UText = (content: string, name: string, sourceType: 'file' | 'url' | 'text' | 'curated', sourceUrl?: string) => {
@@ -105,17 +120,36 @@ export const PlaylistsPage: React.FC = () => {
   // Handle URL Import
   const handleUrlImport = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!urlInput.trim()) return;
+    const cleanUrl = urlInput.trim();
+    if (!cleanUrl) return;
 
     setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
     try {
+      // If user provided a direct video file (MP4, MKV, WebM, etc.), handle directly without fetching 1GB binary data
+      const isDirectVideo = /\.(mp4|mkv|webm|avi|mov)($|\?)/i.test(cleanUrl);
+      if (isDirectVideo) {
+        let inferredTitle = playlistName.trim();
+        if (!inferredTitle) {
+          try {
+            const urlObj = new URL(cleanUrl);
+            const fname = decodeURIComponent(urlObj.pathname).split('/').filter(Boolean).pop() || 'Direct Video';
+            inferredTitle = fname.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+          } catch {
+            inferredTitle = 'Direct Video';
+          }
+        }
+        const m3uSnippet = `#EXTM3U\n#EXTINF:-1 group-title="Movies", ${inferredTitle}\n${cleanUrl}`;
+        processM3UText(m3uSnippet, inferredTitle, 'url', cleanUrl);
+        return;
+      }
+
       // First attempt direct fetch
       let response: Response;
       try {
-        response = await fetch(urlInput.trim());
+        response = await fetch(cleanUrl);
       } catch {
         // If direct fetch fails due to CORS, provide clear helpful instructions
         throw new Error(
@@ -128,12 +162,43 @@ export const PlaylistsPage: React.FC = () => {
       }
 
       const content = await response.text();
-      const defaultName = playlistName.trim() || new URL(urlInput).pathname.split('/').pop() || 'Remote Playlist';
-      processM3UText(content, defaultName, 'url', urlInput.trim());
+      const defaultName = playlistName.trim() || new URL(cleanUrl).pathname.split('/').pop() || 'Remote Playlist';
+      processM3UText(content, defaultName, 'url', cleanUrl);
     } catch (e: any) {
       setErrorMsg(e.message || 'Unable to import from URL.');
       setIsLoading(false);
     }
+  };
+
+  // Handle Direct Single Stream / MP4 Form Submit
+  const handleDirectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directUrl.trim()) return;
+
+    setIsLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const title = directTitle.trim() || 'Custom Stream';
+    const group = directGenre.trim() || (directType === 'movie' ? 'Movies' : 'Live Streams');
+    const poster = directPoster.trim() || (directType === 'movie'
+      ? 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'
+      : 'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=150&auto=format&fit=crop&q=80');
+    const duration = directType === 'movie' ? 7200 : -1;
+    const year = directYear ? parseInt(directYear, 10) : new Date().getFullYear();
+
+    const m3uSnippet = `#EXTM3U\n#EXTINF:${duration} tvg-name="${title}" tvg-logo="${poster}" group-title="${group}",${title} (${year})\n${directUrl.trim()}`;
+    processM3UText(m3uSnippet, title, 'text', directUrl.trim());
+  };
+
+  const loadRockstarPreset = () => {
+    setDirectTitle('Rockstar (2011)');
+    setDirectUrl('https://archive.org/download/rockstar-2011/Rockstar%20%282011%29.mp4');
+    setDirectType('movie');
+    setDirectGenre('Musical, Drama, Romance');
+    setDirectYear('2011');
+    setDirectPoster('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80');
+    setErrorMsg(null);
   };
 
   // Handle Paste Import
@@ -209,6 +274,20 @@ export const PlaylistsPage: React.FC = () => {
         {/* Method Tabs */}
         <div className="flex items-center gap-2 border-b border-white/10 pb-4 overflow-x-auto">
           <button
+            id="tab-btn-direct"
+            onClick={() => setActiveTab('direct')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              activeTab === 'direct'
+                ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
+                : 'glass-panel text-slate-400 hover:text-white'
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            <span>Add Single Movie / Video (MP4, M3U8)</span>
+          </button>
+
+          <button
+            id="tab-btn-upload"
             onClick={() => setActiveTab('upload')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'upload'
@@ -221,6 +300,7 @@ export const PlaylistsPage: React.FC = () => {
           </button>
 
           <button
+            id="tab-btn-url"
             onClick={() => setActiveTab('url')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'url'
@@ -233,6 +313,7 @@ export const PlaylistsPage: React.FC = () => {
           </button>
 
           <button
+            id="tab-btn-paste"
             onClick={() => setActiveTab('paste')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
               activeTab === 'paste'
@@ -244,6 +325,117 @@ export const PlaylistsPage: React.FC = () => {
             <span>Paste Raw M3U</span>
           </button>
         </div>
+
+        {/* Tab 0: Direct Single Video (MP4 / M3U8) */}
+        {activeTab === 'direct' && (
+          <form onSubmit={handleDirectSubmit} className="space-y-5 max-w-2xl animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-200 text-xs">
+              <span>Add any direct MP4 video link or M3U8 live stream directly without needing an M3U file.</span>
+              <button
+                type="button"
+                onClick={loadRockstarPreset}
+                className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Fill Rockstar (2011) MP4</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 block">
+                  Title <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Rockstar (2011)"
+                  value={directTitle}
+                  onChange={e => setDirectTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 border border-white/10"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 block">
+                  Stream Type
+                </label>
+                <select
+                  value={directType}
+                  onChange={e => setDirectType(e.target.value as 'movie' | 'live')}
+                  className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white bg-[#121520] focus:outline-none focus:border-sky-400 border border-white/10"
+                >
+                  <option value="movie">Movie / VOD (MP4, MKV, WebM)</option>
+                  <option value="live">Live TV Channel (M3U8 / HLS)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400 block">
+                Direct Stream / Video URL (MP4 or M3U8) <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="url"
+                required
+                placeholder="https://archive.org/download/.../Rockstar%20%282011%29.mp4"
+                value={directUrl}
+                onChange={e => setDirectUrl(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 border border-white/10"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 block">
+                  Genre / Category
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Musical, Drama, Romance"
+                  value={directGenre}
+                  onChange={e => setDirectGenre(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 border border-white/10"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-400 block">
+                  Release Year
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 2011"
+                  value={directYear}
+                  onChange={e => setDirectYear(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 border border-white/10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-400 block">
+                Poster Artwork URL (Optional)
+              </label>
+              <input
+                type="url"
+                placeholder="https://images.unsplash.com/..."
+                value={directPoster}
+                onChange={e => setDirectPoster(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl glass-panel-subtle text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 border border-white/10"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="px-6 py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-lg shadow-sky-500/25 transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add to Video Library</span>
+            </button>
+          </form>
+        )}
 
         {/* Tab 1: File Upload (Drag and Drop) */}
         {activeTab === 'upload' && (
